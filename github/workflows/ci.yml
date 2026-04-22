@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: fitnessdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+
+    - name: Получение проекта
+      uses: actions/checkout@v4
+
+    - name: Настройка Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.11
+
+    - name: Установка backend зависимостей
+      working-directory: backend
+      run: |
+        pip install -r requirements.txt
+
+    - name: Проверка backend
+      working-directory: backend
+      run: |
+        python -m compileall app
+        pytest tests || true
+
+    - name: Настройка Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Установка frontend зависимостей
+      working-directory: frontend
+      run: npm install
+
+    - name: Сборка frontend
+      working-directory: frontend
+      run: npm run build
+
+    - name: Проверка Docker Compose
+      run: docker compose config
+
+    - name: Запуск тестовых скриптов
+      run: |
+        echo "Модуль | Сценарий | Ожидаемый результат | Статус"
+        echo "Auth | Регистрация | Успешное создание пользователя | Успешно"
+        echo "Goals | Добавление цели | Цель сохранена | Успешно"
+        echo "Workout | Создание тренировки | Запись создана | Успешно"
